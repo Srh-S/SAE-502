@@ -1,0 +1,82 @@
+enable
+configure terminal
+
+# ======================================================
+# 1) CONFIG DU PORT GIG0/1 QUI VA VERS LES SWITCHS
+# ======================================================
+# On ne met PAS d'adresse IP ici, ce port sert juste à transporter les VLANs.
+# C'est ce qu'on appelle le "trunk" entre le routeur et les switchs.
+#
+interface GigabitEthernet0/1
+ no ip address
+ no shutdown
+exit
+
+
+# ======================================================
+# 2) ROUTER-ON-A-STICK : CREATION DES SOUS-INTERFACES
+# ======================================================
+# Ici, on crée une sous-interface par VLAN.
+# Le routeur recevra le trafic tagué, et répondra avec la bonne adresse IP.
+#
+
+# ---- VLAN 10 : Réseau du premier groupe de PC (PC3, PC4, PC5) ----
+# Ce VLAN utilisera le réseau 10.0.2.0/26
+# La passerelle (gateway) sera 10.0.2.1
+interface GigabitEthernet0/1.10
+ encapsulation dot1Q 10
+ ip address 10.0.2.1 255.255.255.192
+exit
+
+# ---- VLAN 20 : Réseau du deuxième groupe de PC (PC0, PC1, PC2) ----
+# Ce VLAN utilisera le réseau 10.0.2.64/26
+# La passerelle (gateway) sera 10.0.2.65
+interface GigabitEthernet0/1.20
+ encapsulation dot1Q 20
+ ip address 10.0.2.65 255.255.255.192
+exit
+
+
+# ======================================================
+# 3) DHCP : EXCLUSION DES ADRESSES RESERVEES
+# ======================================================
+# On évite d'attribuer les premières IP aux clients,
+# car elles sont utilisées par le routeur comme passerelles.
+#
+ip dhcp excluded-address 10.0.2.1 10.0.2.9
+ip dhcp excluded-address 10.0.2.65 10.0.2.69
+
+
+# ======================================================
+# 4) DHCP : POOL POUR LE RESEAU A (VLAN 10)
+# ======================================================
+# Ce pool distribue des IP aux PC du VLAN 10.
+# Ils recevront une IP automatiquement entre 10.0.2.10 et 10.0.2.62.
+#
+ip dhcp pool RESEAU_A
+ network 10.0.2.0 255.255.255.192
+ default-router 10.0.2.1
+ dns-server 8.8.8.8
+exit
+
+
+# ======================================================
+# 5) DHCP : POOL POUR LE RESEAU B (VLAN 20)
+# ======================================================
+# Ce pool distribue des IP automatiques pour les PC du VLAN 20.
+# Ils recevront une IP entre 10.0.2.70 et 10.0.2.126.
+#
+ip dhcp pool RESEAU_B
+ network 10.0.2.64 255.255.255.192
+ default-router 10.0.2.65
+ dns-server 8.8.8.8
+exit
+
+
+# ======================================================
+# 6) SAUVEGARDE DE LA CONFIGURATION
+# ======================================================
+# On sauvegarde la configuration sinon tout disparaît au redémarrage.
+#
+end
+write
